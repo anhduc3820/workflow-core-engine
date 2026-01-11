@@ -209,21 +209,28 @@ jobs:
           echo "✅ Full build successful!"
 
       - name: Generate Test Summary
+        if: always()
         run: |
           echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
+          # Check if test reports directory exists
+          if [ ! -d "target/surefire-reports" ]; then
+            echo "⚠️ **WARNING:** No test reports directory found" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          
           # Initialize with defaults to handle empty values
-          TOTAL=$(find target/surefire-reports -name "TEST-*.xml" -exec grep -h "tests=" {} \; | sed 's/.*tests="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
+          TOTAL=$(find target/surefire-reports -name "TEST-*.xml" 2>/dev/null -exec grep -h "tests=" {} \; | sed 's/.*tests="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
           TOTAL=${TOTAL:-0}
           
-          FAILURES=$(find target/surefire-reports -name "TEST-*.xml" -exec grep -h "failures=" {} \; | sed 's/.*failures="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
+          FAILURES=$(find target/surefire-reports -name "TEST-*.xml" 2>/dev/null -exec grep -h "failures=" {} \; | sed 's/.*failures="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
           FAILURES=${FAILURES:-0}
           
-          ERRORS=$(find target/surefire-reports -name "TEST-*.xml" -exec grep -h "errors=" {} \; | sed 's/.*errors="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
+          ERRORS=$(find target/surefire-reports -name "TEST-*.xml" 2>/dev/null -exec grep -h "errors=" {} \; | sed 's/.*errors="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
           ERRORS=${ERRORS:-0}
           
-          SKIPPED=$(find target/surefire-reports -name "TEST-*.xml" -exec grep -h "skipped=" {} \; | sed 's/.*skipped="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
+          SKIPPED=$(find target/surefire-reports -name "TEST-*.xml" 2>/dev/null -exec grep -h "skipped=" {} \; | sed 's/.*skipped="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
           SKIPPED=${SKIPPED:-0}
           
           # Avoid division by zero
@@ -232,6 +239,9 @@ jobs:
             PASS_RATE=0
           else
             PASSED=$((TOTAL - FAILURES - ERRORS - SKIPPED))
+            if [ "$PASSED" -lt 0 ]; then
+              PASSED=0
+            fi
             PASS_RATE=$((PASSED * 100 / TOTAL))
           fi
           
@@ -247,11 +257,13 @@ jobs:
           
           if [ "$TOTAL" -eq 0 ]; then
             echo "⚠️ **WARNING:** No test results found" >> $GITHUB_STEP_SUMMARY
+            exit 0
           elif [ "$PASS_RATE" -lt 100 ]; then
             echo "❌ **FAILED:** Test pass rate below 100%" >> $GITHUB_STEP_SUMMARY
             exit 1
           else
             echo "✅ **SUCCESS:** 100% test pass rate achieved" >> $GITHUB_STEP_SUMMARY
+            exit 0
           fi
 
   # ============================================================================
