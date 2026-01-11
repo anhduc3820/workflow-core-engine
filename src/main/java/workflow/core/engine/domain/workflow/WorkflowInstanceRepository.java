@@ -12,9 +12,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Repository: Workflow Instance
+ * Repository: Workflow Instance (v2)
  * Provides persistence operations for workflow instances
  * Supports optimistic locking for concurrent updates
+ * Multi-tenant aware
  */
 @Repository
 public interface WorkflowInstanceRepository extends JpaRepository<WorkflowInstanceEntity, String> {
@@ -33,9 +34,19 @@ public interface WorkflowInstanceRepository extends JpaRepository<WorkflowInstan
     List<WorkflowInstanceEntity> findByWorkflowIdOrderByCreatedAtDesc(String workflowId);
 
     /**
+     * Find all instances by workflow ID and tenant (v2)
+     */
+    List<WorkflowInstanceEntity> findByWorkflowIdAndTenantIdOrderByCreatedAtDesc(String workflowId, String tenantId);
+
+    /**
      * Find instances in specific state
      */
     List<WorkflowInstanceEntity> findByState(WorkflowState state);
+
+    /**
+     * Find instances in specific state for tenant (v2)
+     */
+    List<WorkflowInstanceEntity> findByStateAndTenantId(WorkflowState state, String tenantId);
 
     /**
      * Find running instances that may need recovery (locked but owner is stale)
@@ -46,9 +57,24 @@ public interface WorkflowInstanceRepository extends JpaRepository<WorkflowInstan
     List<WorkflowInstanceEntity> findStaleRunningInstances(@Param("staleThreshold") Instant staleThreshold);
 
     /**
+     * Find stale running instances for tenant (v2)
+     */
+    @Query("SELECT w FROM WorkflowInstanceEntity w WHERE w.state = 'RUNNING' " +
+           "AND w.tenantId = :tenantId " +
+           "AND w.lockOwner IS NOT NULL " +
+           "AND w.lockAcquiredAt < :staleThreshold")
+    List<WorkflowInstanceEntity> findStaleRunningInstancesByTenant(@Param("tenantId") String tenantId,
+                                                                    @Param("staleThreshold") Instant staleThreshold);
+
+    /**
      * Count instances by state
      */
     long countByState(WorkflowState state);
+
+    /**
+     * Count instances by state and tenant (v2)
+     */
+    long countByStateAndTenantId(WorkflowState state, String tenantId);
 
     /**
      * Find instances created after a specific time

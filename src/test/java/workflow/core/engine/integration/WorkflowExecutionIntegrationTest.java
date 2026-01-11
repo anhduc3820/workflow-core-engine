@@ -94,7 +94,7 @@ class WorkflowExecutionIntegrationTest {
                   },
                   "metadata": {
                     "author": "Test",
-                    "created": "2026-01-11T00:00:00Z"
+                    "createdAt": "2026-01-11T00:00:00Z"
                   }
                 }
                 """;

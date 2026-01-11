@@ -18,6 +18,8 @@ import java.util.List;
 @Table(name = "workflow_instances", indexes = {
         @Index(name = "idx_workflow_id", columnList = "workflow_id"),
         @Index(name = "idx_state", columnList = "state"),
+        @Index(name = "idx_tenant_id", columnList = "tenant_id"),
+        @Index(name = "idx_lock_owner", columnList = "lock_owner"),
         @Index(name = "idx_created_at", columnList = "created_at")
 })
 @Data
@@ -33,6 +35,9 @@ public class WorkflowInstanceEntity {
 
     @Column(name = "version", nullable = false, length = 20)
     private String version;
+
+    @Column(name = "tenant_id", nullable = false, length = 100)
+    private String tenantId = "default";
 
     @Enumerated(EnumType.STRING)
     @Column(name = "state", nullable = false, length = 20)
@@ -59,6 +64,9 @@ public class WorkflowInstanceEntity {
     @Column(name = "error_node_id", length = 100)
     private String errorNodeId;
 
+    @Column(name = "retry_count", nullable = false)
+    private Integer retryCount = 0;
+
     @Column(name = "lock_owner", length = 100)
     private String lockOwner;
 
@@ -77,8 +85,20 @@ public class WorkflowInstanceEntity {
         this.executionId = executionId;
         this.workflowId = workflowId;
         this.version = version;
+        this.tenantId = "default";
         this.state = WorkflowState.PENDING;
         this.createdAt = Instant.now();
+        this.retryCount = 0;
+    }
+
+    public WorkflowInstanceEntity(String executionId, String workflowId, String version, String tenantId) {
+        this.executionId = executionId;
+        this.workflowId = workflowId;
+        this.version = version;
+        this.tenantId = tenantId;
+        this.state = WorkflowState.PENDING;
+        this.createdAt = Instant.now();
+        this.retryCount = 0;
     }
 
     public void start() {
@@ -108,6 +128,25 @@ public class WorkflowInstanceEntity {
         this.lockAcquiredAt = null;
     }
 
+    public void markCancelled() {
+        this.state = WorkflowState.CANCELLED;
+        this.completedAt = Instant.now();
+        this.lockOwner = null;
+        this.lockAcquiredAt = null;
+    }
+
+    public void updateVariables(String variablesJson) {
+        this.variablesJson = variablesJson;
+    }
+
+    public String getCurrentVariables() {
+        return this.variablesJson;
+    }
+
+    public String getState() {
+        return this.state != null ? this.state.name() : null;
+    }
+
     public boolean tryAcquireLock(String owner) {
         if (this.lockOwner == null || isLockExpired()) {
             this.lockOwner = owner;
@@ -120,6 +159,10 @@ public class WorkflowInstanceEntity {
     public void releaseLock() {
         this.lockOwner = null;
         this.lockAcquiredAt = null;
+    }
+
+    public void incrementRetryCount() {
+        this.retryCount++;
     }
 
     private boolean isLockExpired() {

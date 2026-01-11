@@ -1,0 +1,347 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-workflow-definitions
+      author: system
+      changes:
+        - createTable:
+            tableName: workflow_definitions
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: workflow_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(500)
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: definition_json
+                  type: CLOB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_active
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+              - column:
+                  name: deployed_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: deployed_by
+                  type: VARCHAR(255)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - addUniqueConstraint:
+            tableName: workflow_definitions
+            columnNames: workflow_id, version
+            constraintName: uk_workflow_definition_id_version
+
+  - changeSet:
+      id: 001-create-workflow-instances
+      author: system
+      changes:
+        - createTable:
+            tableName: workflow_instances
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: execution_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: workflow_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: workflow_version
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: state
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: current_node_id
+                  type: VARCHAR(255)
+              - column:
+                  name: variables_json
+                  type: CLOB
+              - column:
+                  name: lock_owner
+                  type: VARCHAR(255)
+              - column:
+                  name: lock_acquired_at
+                  type: TIMESTAMP
+              - column:
+                  name: version_lock
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: started_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: completed_at
+                  type: TIMESTAMP
+              - column:
+                  name: error_message
+                  type: TEXT
+              - column:
+                  name: retry_count
+                  type: INT
+                  defaultValueNumeric: 0
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - createIndex:
+            tableName: workflow_instances
+            indexName: idx_workflow_instance_workflow_id
+            columns:
+              - column:
+                  name: workflow_id
+        - createIndex:
+            tableName: workflow_instances
+            indexName: idx_workflow_instance_state
+            columns:
+              - column:
+                  name: state
+        - createIndex:
+            tableName: workflow_instances
+            indexName: idx_workflow_instance_lock_owner
+            columns:
+              - column:
+                  name: lock_owner
+
+  - changeSet:
+      id: 001-create-node-executions
+      author: system
+      changes:
+        - createTable:
+            tableName: node_executions
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: execution_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: node_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: node_type
+                  type: VARCHAR(100)
+              - column:
+                  name: state
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: attempt_number
+                  type: INT
+                  defaultValueNumeric: 1
+              - column:
+                  name: input_variables
+                  type: CLOB
+              - column:
+                  name: output_variables
+                  type: CLOB
+              - column:
+                  name: error_message
+                  type: TEXT
+              - column:
+                  name: executed_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: completed_at
+                  type: TIMESTAMP
+              - column:
+                  name: duration_ms
+                  type: BIGINT
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - createIndex:
+            tableName: node_executions
+            indexName: idx_node_execution_execution_id
+            columns:
+              - column:
+                  name: execution_id
+        - createIndex:
+            tableName: node_executions
+            indexName: idx_node_execution_node_id
+            columns:
+              - column:
+                  name: node_id
+        - createIndex:
+            tableName: node_executions
+            indexName: idx_node_execution_state
+            columns:
+              - column:
+                  name: state
+
+  - changeSet:
+      id: 001-create-gateway-decisions
+      author: system
+      changes:
+        - createTable:
+            tableName: gateway_decisions
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: execution_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: gateway_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: gateway_type
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: selected_edges
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: evaluation_context
+                  type: CLOB
+              - column:
+                  name: decided_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - createIndex:
+            tableName: gateway_decisions
+            indexName: idx_gateway_decision_execution_id
+            columns:
+              - column:
+                  name: execution_id
+
+  - changeSet:
+      id: 001-create-rule-executions
+      author: system
+      changes:
+        - createTable:
+            tableName: rule_executions
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: execution_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: node_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rule_name
+                  type: VARCHAR(500)
+              - column:
+                  name: rule_flow_group
+                  type: VARCHAR(255)
+              - column:
+                  name: rules_fired
+                  type: INT
+                  defaultValueNumeric: 0
+              - column:
+                  name: input_facts
+                  type: CLOB
+              - column:
+                  name: output_facts
+                  type: CLOB
+              - column:
+                  name: executed_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: duration_ms
+                  type: BIGINT
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - createIndex:
+            tableName: rule_executions
+            indexName: idx_rule_execution_execution_id
+            columns:
+              - column:
+                  name: execution_id
+

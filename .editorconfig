@@ -1,0 +1,50 @@
+# EditorConfig for Financial-Grade Workflow Engine
+indent_size = 2
+indent_style = space
+[*.sql]
+# SQL files
+
+indent_size = 2
+indent_style = space
+[*.json]
+# JSON files
+
+trim_trailing_whitespace = false
+indent_size = 2
+indent_style = space
+[*.md]
+# Markdown files
+
+indent_size = 4
+indent_style = space
+[*.properties]
+# Properties files
+
+indent_size = 2
+indent_style = space
+[*.{yml,yaml}]
+# YAML files (Liquibase, application config)
+
+indent_size = 4
+indent_style = space
+[*.xml]
+# XML files (POM, Spring config)
+
+continuation_indent_size = 8
+max_line_length = 120
+indent_size = 4
+indent_style = space
+[*.java]
+# Java files
+
+trim_trailing_whitespace = true
+insert_final_newline = true
+end_of_line = lf
+charset = utf-8
+[*]
+# All files
+
+root = true
+
+# https://editorconfig.org
+

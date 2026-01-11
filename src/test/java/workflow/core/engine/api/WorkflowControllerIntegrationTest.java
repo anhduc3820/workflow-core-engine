@@ -48,10 +48,7 @@ class WorkflowControllerIntegrationTest {
                         {
                             "id": "task-1",
                             "type": "TASK",
-                            "name": "Process Task",
-                            "config": {
-                                "taskType": "service"
-                            }
+                            "name": "Process Task"
                         },
                         {
                             "id": "end-1",
@@ -76,7 +73,7 @@ class WorkflowControllerIntegrationTest {
                     ],
                     "metadata": {
                         "author": "Test User",
-                        "created": "2026-01-11T15:00:00Z"
+                        "createdAt": "2026-01-11T15:00:00Z"
                     }
                 }
                 """;
@@ -163,7 +160,7 @@ class WorkflowControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.workflowId").value("execution-test-workflow"))
                 .andExpect(jsonPath("$.executionId").exists())
-                .andExpect(jsonPath("$.status").exists());
+                .andExpect(jsonPath("$.state").exists());
     }
 
     @Test
@@ -204,9 +201,9 @@ class WorkflowControllerIntegrationTest {
                 .andExpect(status().isOk());
 
         // Then undeploy it
-        mockMvc.perform(delete("/api/workflows/undeploy-test-workflow"))
+        mockMvc.perform(delete("/api/workflows/undeploy-test-workflow?version=1.0.0"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.workflowId").value("undeploy-test-workflow"))
+                .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").exists());
     }
 
@@ -250,8 +247,9 @@ class WorkflowControllerIntegrationTest {
         // Then retrieve it
         mockMvc.perform(get("/api/workflows/get-test-workflow"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.workflowId").value("get-test-workflow"))
-                .andExpect(jsonPath("$.name").value("Get Test Workflow"));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.workflow.workflowId").value("get-test-workflow"))
+                .andExpect(jsonPath("$.workflow.name").value("Get Test Workflow"));
     }
 }
 

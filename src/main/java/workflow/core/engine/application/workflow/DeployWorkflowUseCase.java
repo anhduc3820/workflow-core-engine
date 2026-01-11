@@ -88,11 +88,14 @@ public class DeployWorkflowUseCase {
     }
 
     /**
-     * Get workflow definition by ID
+     * Get workflow definition by ID (latest active version)
      */
     @Transactional(readOnly = true)
     public Optional<WorkflowDefinitionEntity> getById(String workflowId) {
-        return definitionRepository.findById(workflowId);
+        // Get all versions for this workflow ID, ordered by deployment date desc
+        List<WorkflowDefinitionEntity> versions = definitionRepository.findByWorkflowIdAndTenantIdOrderByDeployedAtDesc(workflowId, "default");
+        // Return the first active one (most recent)
+        return versions.stream().filter(WorkflowDefinitionEntity::isActive).findFirst();
     }
 
     /**
@@ -101,13 +104,15 @@ public class DeployWorkflowUseCase {
     @Transactional
     public void undeploy(String workflowId) {
         log.info("Undeploying workflow: {}", workflowId);
-        Optional<WorkflowDefinitionEntity> entity = definitionRepository.findById(workflowId);
+        List<WorkflowDefinitionEntity> entities = definitionRepository.findByWorkflowIdAndTenantIdOrderByDeployedAtDesc(workflowId, "default");
 
-        if (entity.isPresent()) {
-            WorkflowDefinitionEntity definition = entity.get();
-            definition.setActive(false);
-            definitionRepository.save(definition);
-            log.info("Workflow {} undeployed successfully", workflowId);
+        if (!entities.isEmpty()) {
+            // Mark all versions as inactive
+            for (WorkflowDefinitionEntity definition : entities) {
+                definition.setActive(false);
+                definitionRepository.save(definition);
+            }
+            log.info("Workflow {} undeployed successfully ({} versions)", workflowId, entities.size());
         } else {
             throw new IllegalArgumentException("Workflow not found: " + workflowId);
         }

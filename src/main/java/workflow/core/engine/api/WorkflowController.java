@@ -24,6 +24,71 @@ public class WorkflowController {
     private final WorkflowOrchestrationService orchestrationService;
 
     /**
+     * Get all active workflows
+     * GET /api/workflows
+     */
+    @GetMapping
+    public ResponseEntity<WorkflowListResponse> getAllWorkflows() {
+        log.info("Received request to get all workflows");
+
+        try {
+            var workflows = orchestrationService.getAllActiveWorkflows();
+
+            WorkflowListResponse response = new WorkflowListResponse();
+            response.setSuccess(true);
+            response.setWorkflows(workflows);
+            response.setCount(workflows.size());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to get workflows", e);
+
+            WorkflowListResponse response = new WorkflowListResponse();
+            response.setSuccess(false);
+            response.setError(e.getMessage());
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
+     * Get workflow by ID
+     * GET /api/workflows/{workflowId}
+     */
+    @GetMapping("/{workflowId}")
+    public ResponseEntity<WorkflowDetailResponse> getWorkflowById(@PathVariable String workflowId) {
+        log.info("Received request to get workflow: {}", workflowId);
+
+        try {
+            var workflow = orchestrationService.getWorkflowById(workflowId);
+
+            if (workflow != null) {
+                WorkflowDetailResponse response = new WorkflowDetailResponse();
+                response.setSuccess(true);
+                response.setWorkflow(workflow);
+
+                return ResponseEntity.ok(response);
+            } else {
+                WorkflowDetailResponse response = new WorkflowDetailResponse();
+                response.setSuccess(false);
+                response.setError("Workflow not found: " + workflowId);
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to get workflow: {}", workflowId, e);
+
+            WorkflowDetailResponse response = new WorkflowDetailResponse();
+            response.setSuccess(false);
+            response.setError(e.getMessage());
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
      * Deploy workflow from JSON
      * POST /api/workflows/deploy
      */
@@ -179,6 +244,21 @@ public class WorkflowController {
     }
 
     // Response DTOs
+
+    @Data
+    public static class WorkflowListResponse {
+        private boolean success;
+        private java.util.List<Object> workflows;
+        private int count;
+        private String error;
+    }
+
+    @Data
+    public static class WorkflowDetailResponse {
+        private boolean success;
+        private Object workflow;
+        private String error;
+    }
 
     @Data
     public static class DeployResponse {

@@ -35,7 +35,7 @@ class NodeExecutorServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(mockHandler.supports(any())).thenReturn(true);
+        lenient().when(mockHandler.supports(any())).thenReturn(true);
         nodeExecutorService = new NodeExecutorService(List.of(mockHandler), conditionEvaluator);
     }
 
@@ -88,8 +88,8 @@ class NodeExecutorServiceTest {
         Map<String, Object> variables = new HashMap<>();
         variables.put("result", true);
 
-        when(conditionEvaluator.evaluate("result == true", variables)).thenReturn(true);
-        when(conditionEvaluator.evaluate("result == false", variables)).thenReturn(false);
+        lenient().when(conditionEvaluator.evaluate("result == true", variables)).thenReturn(true);
+        lenient().when(conditionEvaluator.evaluate("result == false", variables)).thenReturn(false);
 
         // When
         List<GraphEdge> selected = nodeExecutorService.selectEdges(
@@ -132,7 +132,7 @@ class NodeExecutorServiceTest {
         Map<String, Object> variables = new HashMap<>();
         variables.put("result", false);
 
-        when(conditionEvaluator.evaluate("result == true", variables)).thenReturn(false);
+        lenient().when(conditionEvaluator.evaluate("result == true", variables)).thenReturn(false);
 
         // When
         List<GraphEdge> selected = nodeExecutorService.selectEdges(
@@ -181,7 +181,7 @@ class NodeExecutorServiceTest {
         config.setId(id);
         config.setSource(source);
         config.setTarget(target);
-        config.setPathType(PathType.DEFAULT);
+        // Don't set default pathType - let caller set it explicitly if needed
         return new GraphEdge(config);
     }
 }

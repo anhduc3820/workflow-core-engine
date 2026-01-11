@@ -40,8 +40,14 @@ public class NodeExecutorService {
 
         // Create temporary context for handler compatibility
         WorkflowContext tempContext = new WorkflowContext();
-        tempContext.setExecutionId(execution.getWorkflowInstance().getExecutionId());
-        tempContext.setWorkflowId(execution.getWorkflowInstance().getWorkflowId());
+        if (execution != null && execution.getWorkflowInstance() != null) {
+            tempContext.setExecutionId(execution.getWorkflowInstance().getExecutionId());
+            tempContext.setWorkflowId(execution.getWorkflowInstance().getWorkflowId());
+        } else {
+            // For testing or standalone execution
+            tempContext.setExecutionId("test-execution");
+            tempContext.setWorkflowId("test-workflow");
+        }
         tempContext.setCurrentNodeId(node.getId());
         tempContext.getVariables().putAll(variables);
 
@@ -81,9 +87,9 @@ public class NodeExecutorService {
      * Select edge for XOR gateway (exactly one edge)
      */
     private List<GraphEdge> selectExclusiveGatewayEdge(List<GraphEdge> edges, Map<String, Object> variables) {
-        // Find first edge with satisfied condition
+        // Find first edge with satisfied condition (skip default edges)
         for (GraphEdge edge : edges) {
-            if (evaluateEdgeCondition(edge, variables)) {
+            if (edge.getPathType() != PathType.DEFAULT && evaluateEdgeCondition(edge, variables)) {
                 return List.of(edge);
             }
         }

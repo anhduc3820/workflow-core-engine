@@ -2,11 +2,15 @@ package workflow.core.engine.application.executor;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import workflow.core.engine.domain.audit.ExecutionAuditLogEntity;
+import workflow.core.engine.domain.audit.ExecutionAuditLogRepository;
 import workflow.core.engine.domain.node.NodeExecutionEntity;
 import workflow.core.engine.domain.node.NodeExecutionRepository;
 import workflow.core.engine.domain.node.NodeExecutionState;
@@ -37,6 +41,10 @@ public class ExecutionStateManager {
     private final WorkflowInstanceRepository instanceRepository;
     private final NodeExecutionRepository nodeExecutionRepository;
     private final ObjectMapper objectMapper;
+    private final ExecutionAuditLogRepository auditLogRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private static final String INSTANCE_ID = generateInstanceId();
 
@@ -50,6 +58,11 @@ public class ExecutionStateManager {
         instance.setVariablesJson(serializeVariables(variables));
 
         WorkflowInstanceEntity saved = instanceRepository.save(instance);
+
+        // Flush to ensure instance is persisted before acquireLock is called
+        // This is critical for HA scenarios where acquireLock uses REQUIRES_NEW
+        entityManager.flush();
+
         log.info("Created workflow instance: {} for workflow: {}", executionId, workflowId);
         return saved;
     }
@@ -58,7 +71,7 @@ public class ExecutionStateManager {
      * Acquire lock on workflow instance (for HA execution)
      * Returns true if lock acquired, false if already locked by another instance
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public boolean acquireLock(String executionId) {
         Optional<WorkflowInstanceEntity> optional = instanceRepository.findByIdWithLock(executionId);
 
@@ -71,6 +84,7 @@ public class ExecutionStateManager {
 
         if (instance.tryAcquireLock(INSTANCE_ID)) {
             instanceRepository.save(instance);
+            entityManager.flush(); // Ensure lock is persisted immediately
             log.debug("Lock acquired for instance: {} by {}", executionId, INSTANCE_ID);
             return true;
         }
@@ -262,6 +276,21 @@ public class ExecutionStateManager {
             return hostname + "-" + UUID.randomUUID().toString().substring(0, 8);
         } catch (UnknownHostException e) {
             return "unknown-" + UUID.randomUUID().toString().substring(0, 8);
+        }
+    }
+
+    /**
+     * Helper method for audit logging (v2)
+     */
+    private void auditLog(String executionId, String tenantId, ExecutionAuditLogEntity.AuditEventType eventType,
+                          String eventData, String actor) {
+        if (auditLogRepository != null) {
+            try {
+                ExecutionAuditLogEntity audit = new ExecutionAuditLogEntity(executionId, tenantId, eventType, eventData, actor);
+                auditLogRepository.save(audit);
+            } catch (Exception e) {
+                log.error("Failed to write audit log", e);
+            }
         }
     }
 }

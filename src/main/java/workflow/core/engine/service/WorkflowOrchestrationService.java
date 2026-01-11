@@ -124,6 +124,33 @@ public class WorkflowOrchestrationService {
     }
 
     /**
+     * Get all active workflows
+     */
+    public java.util.List<Object> getAllActiveWorkflows() {
+        log.debug("Getting all active workflows");
+        return registry.getAllActiveWorkflows();
+    }
+
+    /**
+     * Get workflow by ID (latest version)
+     */
+    public Object getWorkflowById(String workflowId) {
+        log.debug("Getting workflow by ID: {}", workflowId);
+        WorkflowGraph graph = registry.getLatestWorkflow(workflowId);
+        if (graph == null) {
+            return null;
+        }
+        // Return workflow metadata
+        return java.util.Map.of(
+            "workflowId", graph.getWorkflowId(),
+            "version", graph.getVersion(),
+            "name", graph.getName(),
+            "description", graph.getDescription() != null ? graph.getDescription() : "",
+            "nodeCount", graph.getNodes().size()
+        );
+    }
+
+    /**
      * Deployment result
      */
     public static class DeploymentResult {

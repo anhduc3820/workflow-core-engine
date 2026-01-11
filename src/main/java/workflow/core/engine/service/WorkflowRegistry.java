@@ -90,6 +90,28 @@ public class WorkflowRegistry {
     }
 
     /**
+     * Get all active workflows (latest versions)
+     */
+    public java.util.List<Object> getAllActiveWorkflows() {
+        java.util.List<Object> result = new java.util.ArrayList<>();
+
+        for (String workflowId : workflows.keySet()) {
+            WorkflowGraph latest = getLatestWorkflow(workflowId);
+            if (latest != null) {
+                result.add(java.util.Map.of(
+                    "workflowId", latest.getWorkflowId(),
+                    "version", latest.getVersion(),
+                    "name", latest.getName(),
+                    "description", latest.getDescription() != null ? latest.getDescription() : "",
+                    "nodeCount", latest.getNodes().size()
+                ));
+            }
+        }
+
+        return result;
+    }
+
+    /**
      * Compare semantic versions (simple implementation)
      */
     private int compareVersions(String v1, String v2) {

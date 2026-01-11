@@ -1,0 +1,67 @@
+package workflow.core.engine.domain.replay;
+
+/**
+ * Execution Event Type
+ * Defines all possible events in workflow execution lifecycle
+ */
+public enum ExecutionEventType {
+    // Workflow Level
+    WORKFLOW_STARTED,
+    WORKFLOW_COMPLETED,
+    WORKFLOW_FAILED,
+    WORKFLOW_PAUSED,
+    WORKFLOW_RESUMED,
+    WORKFLOW_CANCELLED,
+
+    // Node Execution
+    NODE_ENTERED,
+    NODE_STARTED,
+    NODE_COMPLETED,
+    NODE_FAILED,
+    NODE_SKIPPED,
+    NODE_RETRY,
+
+    // Gateway Events
+    GATEWAY_EVALUATED,
+    GATEWAY_BRANCH_TAKEN,
+    GATEWAY_MERGE,
+
+    // Transaction Events
+    TRANSACTION_STARTED,
+    TRANSACTION_COMMITTED,
+    TRANSACTION_ROLLED_BACK,
+
+    // Compensation Events
+    COMPENSATION_INITIATED,
+    COMPENSATION_COMPLETED,
+    COMPENSATION_FAILED,
+
+    // Rollback Events
+    ROLLBACK_INITIATED,
+    ROLLBACK_COMPLETED,
+    ROLLBACK_FAILED,
+    WORKFLOW_ROLLED_BACK,
+    CHECKPOINT_CREATED,
+
+    // Variable Events
+    VARIABLE_SET,
+    VARIABLE_UPDATED,
+    VARIABLE_DELETED,
+
+    // Service Invocation
+    SERVICE_INVOKED,
+    SERVICE_RESPONSE,
+
+    // Rule Execution
+    RULE_EVALUATED,
+    RULE_FIRED,
+
+    // Error Handling
+    ERROR_CAUGHT,
+    ERROR_HANDLER_INVOKED,
+
+    // State Persistence
+    STATE_CHECKPOINT,
+    STATE_RESTORED
+}
+

@@ -9,6 +9,8 @@ import java.util.Map;
 /**
  * Root workflow definition matching frontend export schema
  * Compatible with example-backend-workflow.json
+ *
+ * Supports both v1 (nodes/edges at root) and v2 (nodes/edges in execution) formats
  */
 @Data
 public class WorkflowDefinition {
@@ -33,6 +35,29 @@ public class WorkflowDefinition {
 
     @JsonProperty("metadata")
     private MetadataDefinition metadata;
+
+    // V1 backward compatibility - nodes at root level
+    @JsonProperty("nodes")
+    private List<NodeConfig> nodes;
+
+    // V1 backward compatibility - edges at root level
+    @JsonProperty("edges")
+    private List<EdgeConfig> edges;
+
+    /**
+     * Get execution definition with backward compatibility support.
+     * If execution is null but nodes/edges are present at root (v1 format),
+     * creates an execution wrapper automatically.
+     */
+    public ExecutionDefinition getExecution() {
+        if (execution == null && (nodes != null || edges != null)) {
+            // V1 format - auto-wrap into execution object
+            execution = new ExecutionDefinition();
+            execution.setNodes(nodes);
+            execution.setEdges(edges);
+        }
+        return execution;
+    }
 
     /**
      * Execution definition containing nodes and edges

@@ -10,6 +10,7 @@ public enum NodeType {
     START_EVENT("START_EVENT"),
     END_EVENT("END_EVENT"),
     INTERMEDIATE_EVENT("INTERMEDIATE_EVENT"),
+    TASK("TASK"),  // Generic task type for backward compatibility
     SCRIPT_TASK("SCRIPT_TASK"),
     SERVICE_TASK("SERVICE_TASK"),
     USER_TASK("USER_TASK"),
@@ -48,7 +49,7 @@ public enum NodeType {
     }
 
     public boolean isTask() {
-        return this == SCRIPT_TASK || this == SERVICE_TASK || this == USER_TASK
+        return this == TASK || this == SCRIPT_TASK || this == SERVICE_TASK || this == USER_TASK
             || this == BUSINESS_RULE_TASK || this == MANUAL_TASK;
     }
 

@@ -1,0 +1,79 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-add-version-metadata
+      author: system
+      changes:
+        - addColumn:
+            tableName: workflow_definitions
+            columns:
+              - column:
+                  name: previous_version
+                  type: VARCHAR(50)
+              - column:
+                  name: migration_strategy
+                  type: VARCHAR(50)
+                  defaultValue: 'NONE'
+              - column:
+                  name: changelog
+                  type: TEXT
+
+  - changeSet:
+      id: 003-create-version-migration-log
+      author: system
+      changes:
+        - createTable:
+            tableName: version_migration_log
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: workflow_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: from_version
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: to_version
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: instances_migrated
+                  type: INT
+                  defaultValueNumeric: 0
+              - column:
+                  name: migration_status
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: migration_started_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: migration_completed_at
+                  type: TIMESTAMP
+              - column:
+                  name: error_message
+                  type: TEXT
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - createIndex:
+            tableName: version_migration_log
+            indexName: idx_version_migration_workflow_id
+            columns:
+              - column:
+                  name: workflow_id
+

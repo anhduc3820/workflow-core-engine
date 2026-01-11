@@ -1,0 +1,99 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-add-tenant-columns
+      author: system
+      changes:
+        - addColumn:
+            tableName: workflow_definitions
+            columns:
+              - column:
+                  name: tenant_id
+                  type: VARCHAR(100)
+                  defaultValue: 'default'
+                  constraints:
+                    nullable: false
+        - addColumn:
+            tableName: workflow_instances
+            columns:
+              - column:
+                  name: tenant_id
+                  type: VARCHAR(100)
+                  defaultValue: 'default'
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: workflow_definitions
+            indexName: idx_workflow_definition_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
+        - createIndex:
+            tableName: workflow_instances
+            indexName: idx_workflow_instance_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
+
+  - changeSet:
+      id: 002-create-tenant-metadata
+      author: system
+      changes:
+        - createTable:
+            tableName: tenant_metadata
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: tenant_name
+                  type: VARCHAR(500)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(50)
+                  defaultValue: 'ACTIVE'
+                  constraints:
+                    nullable: false
+              - column:
+                  name: config_json
+                  type: CLOB
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+
+  - changeSet:
+      id: 002-insert-default-tenant
+      author: system
+      changes:
+        - insert:
+            tableName: tenant_metadata
+            columns:
+              - column:
+                  name: tenant_id
+                  value: 'default'
+              - column:
+                  name: tenant_name
+                  value: 'Default Tenant'
+              - column:
+                  name: status
+                  value: 'ACTIVE'
+              - column:
+                  name: config_json
+                  value: '{}'
+
