@@ -214,17 +214,20 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Initialize with defaults to handle empty values
-          TOTAL=${$(find target/surefire-reports -name "TEST-*.xml" -exec grep -h "tests=" {} \; | sed 's/.*tests="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')-0}
-          FAILURES=${$(find target/surefire-reports -name "TEST-*.xml" -exec grep -h "failures=" {} \; | sed 's/.*failures="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')-0}
-          ERRORS=${$(find target/surefire-reports -name "TEST-*.xml" -exec grep -h "errors=" {} \; | sed 's/.*errors="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')-0}
-          SKIPPED=${$(find target/surefire-reports -name "TEST-*.xml" -exec grep -h "skipped=" {} \; | sed 's/.*skipped="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')-0}
+          TOTAL=$(find target/surefire-reports -name "TEST-*.xml" -exec grep -h "tests=" {} \; | sed 's/.*tests="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
+          TOTAL=${TOTAL:-0}
+          
+          FAILURES=$(find target/surefire-reports -name "TEST-*.xml" -exec grep -h "failures=" {} \; | sed 's/.*failures="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
+          FAILURES=${FAILURES:-0}
+          
+          ERRORS=$(find target/surefire-reports -name "TEST-*.xml" -exec grep -h "errors=" {} \; | sed 's/.*errors="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
+          ERRORS=${ERRORS:-0}
+          
+          SKIPPED=$(find target/surefire-reports -name "TEST-*.xml" -exec grep -h "skipped=" {} \; | sed 's/.*skipped="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
+          SKIPPED=${SKIPPED:-0}
           
           # Avoid division by zero
-          if [ -z "$TOTAL" ] || [ "$TOTAL" -eq 0 ]; then
-            TOTAL=0
-            FAILURES=0
-            ERRORS=0
-            SKIPPED=0
+          if [ "$TOTAL" -eq 0 ]; then
             PASSED=0
             PASS_RATE=0
           else
@@ -242,9 +245,9 @@ jobs:
           echo "| **Pass Rate** | **${PASS_RATE}%** |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [ $TOTAL -eq 0 ]; then
+          if [ "$TOTAL" -eq 0 ]; then
             echo "⚠️ **WARNING:** No test results found" >> $GITHUB_STEP_SUMMARY
-          elif [ $PASS_RATE -lt 100 ]; then
+          elif [ "$PASS_RATE" -lt 100 ]; then
             echo "❌ **FAILED:** Test pass rate below 100%" >> $GITHUB_STEP_SUMMARY
             exit 1
           else
