@@ -30,6 +30,9 @@
         <java.version>17</java.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <drools.version>9.44.0.Final</drools.version>
         <lombok.version>1.18.30</lombok.version>
         <testcontainers.version>1.19.3</testcontainers.version>
@@ -219,18 +222,71 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
                 <configuration>
-                    <source>17</source>
-                    <target>17</target>
-                    <release combine.self="override"></release>
+                    <release>17</release>
                     <!-- Show all warnings -->
                     <showWarnings>true</showWarnings>
                     <showDeprecation>true</showDeprecation>
-                    <!-- Treat warnings as errors in financial-grade mode -->
+                    <!-- Compiler arguments -->
                     <compilerArgs>
                         <arg>-Xlint:all</arg>
                         <arg>-Xlint:-processing</arg>
+                        <arg>-Xlint:-serial</arg>
+                        <arg>-parameters</arg>
                     </compilerArgs>
                 </configuration>
+            </plugin>
+
+            <!-- Maven Enforcer Plugin: ENFORCE Java 17 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.4.1</version>
+                <executions>
+                    <execution>
+                        <id>enforce-java-version</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <phase>validate</phase>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[17,)</version>
+                                    <message>
+════════════════════════════════════════════════════════════════
+❌ CRITICAL BUILD FAILURE: Java 17 Required
+════════════════════════════════════════════════════════════════
+
+This financial-grade workflow engine requires Java 17 or higher.
+
+Current Java version: ${java.version}
+Required: Java 17+
+
+ACTION REQUIRED:
+1. Install Java 17 from https://adoptium.net/
+2. Set JAVA_HOME to Java 17 installation
+3. Restart your terminal/IDE
+4. Verify: java -version (should show 17.x.x)
+
+See: JAVA_17_REQUIRED.md for detailed instructions
+
+This is a NON-NEGOTIABLE requirement for:
+- Spring Boot 3.2.0 compatibility
+- Financial-grade security features
+- Modern Java language features
+- Long-term support (LTS until 2029)
+
+════════════════════════════════════════════════════════════════
+                                    </message>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.8.0,)</version>
+                                    <message>Maven 3.8.0 or higher is required for this build.</message>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- Maven Dependency Plugin: Detect unused dependencies -->

@@ -1,5 +1,6 @@
 package workflow.core.engine.service;
 
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -10,186 +11,180 @@ import workflow.core.engine.parser.WorkflowParser;
 import workflow.core.engine.validator.ValidationResult;
 import workflow.core.engine.validator.WorkflowValidator;
 
-import java.util.Map;
-
-/**
- * Main workflow orchestration service
- * Provides high-level workflow operations
- */
+/** Main workflow orchestration service Provides high-level workflow operations */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class WorkflowOrchestrationService {
 
-    private final WorkflowParser parser;
-    private final WorkflowValidator validator;
-    private final WorkflowExecutor executor;
-    private final WorkflowRegistry registry;
+  private final WorkflowParser parser;
+  private final WorkflowValidator validator;
+  private final WorkflowExecutor executor;
+  private final WorkflowRegistry registry;
 
-    /**
-     * Deploy workflow from JSON
-     *
-     * @param json Workflow JSON
-     * @return Deployment result
-     */
-    public DeploymentResult deploy(String json) {
-        log.info("Deploying workflow...");
+  /**
+   * Deploy workflow from JSON
+   *
+   * @param json Workflow JSON
+   * @return Deployment result
+   */
+  public DeploymentResult deploy(String json) {
+    log.info("Deploying workflow...");
 
-        try {
-            // Parse JSON
-            WorkflowGraph graph = parser.parse(json);
+    try {
+      // Parse JSON
+      WorkflowGraph graph = parser.parse(json);
 
-            // Validate
-            ValidationResult validationResult = validator.validate(graph);
+      // Validate
+      ValidationResult validationResult = validator.validate(graph);
 
-            if (!validationResult.isValid()) {
-                log.error("Workflow validation failed with {} errors",
-                        validationResult.getErrors().size());
-                return DeploymentResult.failed(validationResult);
-            }
+      if (!validationResult.isValid()) {
+        log.error("Workflow validation failed with {} errors", validationResult.getErrors().size());
+        return DeploymentResult.failed(validationResult);
+      }
 
-            // Register workflow
-            registry.register(graph);
+      // Register workflow
+      registry.register(graph);
 
-            log.info("Workflow deployed successfully: {} (v{})",
-                    graph.getWorkflowId(), graph.getVersion());
+      log.info(
+          "Workflow deployed successfully: {} (v{})", graph.getWorkflowId(), graph.getVersion());
 
-            return DeploymentResult.success(graph.getWorkflowId(), graph.getVersion(), validationResult);
+      return DeploymentResult.success(graph.getWorkflowId(), graph.getVersion(), validationResult);
 
-        } catch (Exception e) {
-            log.error("Failed to deploy workflow", e);
-            return DeploymentResult.error(e.getMessage());
-        }
+    } catch (Exception e) {
+      log.error("Failed to deploy workflow", e);
+      return DeploymentResult.error(e.getMessage());
+    }
+  }
+
+  /**
+   * Execute workflow by ID and version
+   *
+   * @param workflowId Workflow ID
+   * @param version Version
+   * @param variables Initial variables
+   * @return Execution context
+   */
+  public WorkflowContext execute(String workflowId, String version, Map<String, Object> variables) {
+    log.info("Executing workflow: {} (v{})", workflowId, version);
+
+    // Get workflow from registry
+    WorkflowGraph graph = registry.getWorkflow(workflowId, version);
+
+    if (graph == null) {
+      throw new IllegalArgumentException(
+          "Workflow not found: " + workflowId + " (v" + version + ")");
     }
 
-    /**
-     * Execute workflow by ID and version
-     *
-     * @param workflowId Workflow ID
-     * @param version Version
-     * @param variables Initial variables
-     * @return Execution context
-     */
-    public WorkflowContext execute(String workflowId, String version, Map<String, Object> variables) {
-        log.info("Executing workflow: {} (v{})", workflowId, version);
+    // Execute
+    return executor.execute(graph, variables);
+  }
 
-        // Get workflow from registry
-        WorkflowGraph graph = registry.getWorkflow(workflowId, version);
+  /** Execute latest version of workflow */
+  public WorkflowContext executeLatest(String workflowId, Map<String, Object> variables) {
+    log.info("Executing latest workflow: {}", workflowId);
 
-        if (graph == null) {
-            throw new IllegalArgumentException(
-                    "Workflow not found: " + workflowId + " (v" + version + ")");
-        }
+    WorkflowGraph graph = registry.getLatestWorkflow(workflowId);
 
-        // Execute
-        return executor.execute(graph, variables);
+    if (graph == null) {
+      throw new IllegalArgumentException("Workflow not found: " + workflowId);
     }
 
-    /**
-     * Execute latest version of workflow
-     */
-    public WorkflowContext executeLatest(String workflowId, Map<String, Object> variables) {
-        log.info("Executing latest workflow: {}", workflowId);
+    log.info("Executing version: {}", graph.getVersion());
+    return executor.execute(graph, variables);
+  }
 
-        WorkflowGraph graph = registry.getLatestWorkflow(workflowId);
+  /** Validate workflow JSON without deploying */
+  public ValidationResult validate(String json) {
+    try {
+      WorkflowGraph graph = parser.parse(json);
+      return validator.validate(graph);
+    } catch (Exception e) {
+      ValidationResult result = new ValidationResult();
+      result.addError("PARSE_ERROR", "Failed to parse workflow: " + e.getMessage());
+      return result;
+    }
+  }
 
-        if (graph == null) {
-            throw new IllegalArgumentException("Workflow not found: " + workflowId);
-        }
+  /** Undeploy workflow */
+  public void undeploy(String workflowId, String version) {
+    registry.unregister(workflowId, version);
+    log.info("Workflow undeployed: {} (v{})", workflowId, version);
+  }
 
-        log.info("Executing version: {}", graph.getVersion());
-        return executor.execute(graph, variables);
+  /** Get all active workflows */
+  public java.util.List<Object> getAllActiveWorkflows() {
+    log.debug("Getting all active workflows");
+    return registry.getAllActiveWorkflows();
+  }
+
+  /** Get workflow by ID (latest version) */
+  public Object getWorkflowById(String workflowId) {
+    log.debug("Getting workflow by ID: {}", workflowId);
+    WorkflowGraph graph = registry.getLatestWorkflow(workflowId);
+    if (graph == null) {
+      return null;
+    }
+    // Return workflow metadata
+    return java.util.Map.of(
+        "workflowId", graph.getWorkflowId(),
+        "version", graph.getVersion(),
+        "name", graph.getName(),
+        "description", graph.getDescription() != null ? graph.getDescription() : "",
+        "nodeCount", graph.getNodes().size());
+  }
+
+  /** Deployment result */
+  public static class DeploymentResult {
+    private boolean success;
+    private String workflowId;
+    private String version;
+    private ValidationResult validationResult;
+    private String errorMessage;
+
+    public static DeploymentResult success(
+        String workflowId, String version, ValidationResult validationResult) {
+      DeploymentResult result = new DeploymentResult();
+      result.success = true;
+      result.workflowId = workflowId;
+      result.version = version;
+      result.validationResult = validationResult;
+      return result;
     }
 
-    /**
-     * Validate workflow JSON without deploying
-     */
-    public ValidationResult validate(String json) {
-        try {
-            WorkflowGraph graph = parser.parse(json);
-            return validator.validate(graph);
-        } catch (Exception e) {
-            ValidationResult result = new ValidationResult();
-            result.addError("PARSE_ERROR", "Failed to parse workflow: " + e.getMessage());
-            return result;
-        }
+    public static DeploymentResult failed(ValidationResult validationResult) {
+      DeploymentResult result = new DeploymentResult();
+      result.success = false;
+      result.validationResult = validationResult;
+      return result;
     }
 
-    /**
-     * Undeploy workflow
-     */
-    public void undeploy(String workflowId, String version) {
-        registry.unregister(workflowId, version);
-        log.info("Workflow undeployed: {} (v{})", workflowId, version);
+    public static DeploymentResult error(String errorMessage) {
+      DeploymentResult result = new DeploymentResult();
+      result.success = false;
+      result.errorMessage = errorMessage;
+      return result;
     }
 
-    /**
-     * Get all active workflows
-     */
-    public java.util.List<Object> getAllActiveWorkflows() {
-        log.debug("Getting all active workflows");
-        return registry.getAllActiveWorkflows();
+    // Getters
+    public boolean isSuccess() {
+      return success;
     }
 
-    /**
-     * Get workflow by ID (latest version)
-     */
-    public Object getWorkflowById(String workflowId) {
-        log.debug("Getting workflow by ID: {}", workflowId);
-        WorkflowGraph graph = registry.getLatestWorkflow(workflowId);
-        if (graph == null) {
-            return null;
-        }
-        // Return workflow metadata
-        return java.util.Map.of(
-            "workflowId", graph.getWorkflowId(),
-            "version", graph.getVersion(),
-            "name", graph.getName(),
-            "description", graph.getDescription() != null ? graph.getDescription() : "",
-            "nodeCount", graph.getNodes().size()
-        );
+    public String getWorkflowId() {
+      return workflowId;
     }
 
-    /**
-     * Deployment result
-     */
-    public static class DeploymentResult {
-        private boolean success;
-        private String workflowId;
-        private String version;
-        private ValidationResult validationResult;
-        private String errorMessage;
-
-        public static DeploymentResult success(String workflowId, String version,
-                                               ValidationResult validationResult) {
-            DeploymentResult result = new DeploymentResult();
-            result.success = true;
-            result.workflowId = workflowId;
-            result.version = version;
-            result.validationResult = validationResult;
-            return result;
-        }
-
-        public static DeploymentResult failed(ValidationResult validationResult) {
-            DeploymentResult result = new DeploymentResult();
-            result.success = false;
-            result.validationResult = validationResult;
-            return result;
-        }
-
-        public static DeploymentResult error(String errorMessage) {
-            DeploymentResult result = new DeploymentResult();
-            result.success = false;
-            result.errorMessage = errorMessage;
-            return result;
-        }
-
-        // Getters
-        public boolean isSuccess() { return success; }
-        public String getWorkflowId() { return workflowId; }
-        public String getVersion() { return version; }
-        public ValidationResult getValidationResult() { return validationResult; }
-        public String getErrorMessage() { return errorMessage; }
+    public String getVersion() {
+      return version;
     }
+
+    public ValidationResult getValidationResult() {
+      return validationResult;
+    }
+
+    public String getErrorMessage() {
+      return errorMessage;
+    }
+  }
 }
-

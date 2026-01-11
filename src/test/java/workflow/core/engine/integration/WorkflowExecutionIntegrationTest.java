@@ -1,9 +1,15 @@
 package workflow.core.engine.integration;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.awaitility.Awaitility.*;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -17,42 +23,29 @@ import workflow.core.engine.domain.workflow.WorkflowState;
 import workflow.core.engine.model.WorkflowGraph;
 import workflow.core.engine.parser.WorkflowParser;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.awaitility.Awaitility.*;
-import java.time.Duration;
-
-/**
- * Integration Tests: End-to-End Workflow Execution
- */
+/** Integration Tests: End-to-End Workflow Execution */
 @SpringBootTest
 @ActiveProfiles("test")
 @DisplayName("E2E Workflow Execution Integration Tests")
 class WorkflowExecutionIntegrationTest {
 
-    @Autowired
-    private DeployWorkflowUseCase deployWorkflowUseCase;
+  @Autowired private DeployWorkflowUseCase deployWorkflowUseCase;
 
-    @Autowired
-    private StatelessWorkflowExecutor workflowExecutor;
+  @Autowired private StatelessWorkflowExecutor workflowExecutor;
 
-    @Autowired
-    private ExecutionStateManager stateManager;
+  @Autowired private ExecutionStateManager stateManager;
 
-    @Autowired
-    private WorkflowParser workflowParser;
+  @Autowired private WorkflowParser workflowParser;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+  @Autowired private ObjectMapper objectMapper;
 
-    private String simpleWorkflowJson;
+  private String simpleWorkflowJson;
 
-    @BeforeEach
-    void setUp() {
-        // Create a simple workflow JSON for testing
-        simpleWorkflowJson = """
+  @BeforeEach
+  void setUp() {
+    // Create a simple workflow JSON for testing
+    simpleWorkflowJson =
+        """
                 {
                   "workflowId": "simple-workflow",
                   "version": "1.0.0",
@@ -98,69 +91,71 @@ class WorkflowExecutionIntegrationTest {
                   }
                 }
                 """;
-    }
+  }
 
-    @Test
-    @DisplayName("Should deploy and execute simple workflow successfully")
-    @Transactional
-    void shouldDeployAndExecuteSimpleWorkflow() throws Exception {
-        // Deploy workflow
-        WorkflowDefinitionEntity definition = deployWorkflowUseCase.execute(simpleWorkflowJson);
-        assertThat(definition).isNotNull();
-        assertThat(definition.getWorkflowId()).isEqualTo("simple-workflow");
+  @Test
+  @DisplayName("Should deploy and execute simple workflow successfully")
+  @Transactional
+  void shouldDeployAndExecuteSimpleWorkflow() throws Exception {
+    // Deploy workflow
+    WorkflowDefinitionEntity definition = deployWorkflowUseCase.execute(simpleWorkflowJson);
+    assertThat(definition).isNotNull();
+    assertThat(definition.getWorkflowId()).isEqualTo("simple-workflow");
 
-        // Parse workflow graph
-        WorkflowGraph graph = workflowParser.parseToGraph(simpleWorkflowJson);
+    // Parse workflow graph
+    WorkflowGraph graph = workflowParser.parseToGraph(simpleWorkflowJson);
 
-        // Execute workflow
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("testInput", "testValue");
+    // Execute workflow
+    Map<String, Object> variables = new HashMap<>();
+    variables.put("testInput", "testValue");
 
-        WorkflowInstanceEntity result = workflowExecutor.executeSync(graph, variables);
+    WorkflowInstanceEntity result = workflowExecutor.executeSync(graph, variables);
 
-        // Verify execution
-        assertThat(result).isNotNull();
-        assertThat(result.getState()).isEqualTo(WorkflowState.COMPLETED);
-        assertThat(result.getStartedAt()).isNotNull();
-        assertThat(result.getCompletedAt()).isNotNull();
-        assertThat(result.getErrorMessage()).isNull();
-    }
+    // Verify execution
+    assertThat(result).isNotNull();
+    assertThat(result.getState()).isEqualTo(WorkflowState.COMPLETED);
+    assertThat(result.getStartedAt()).isNotNull();
+    assertThat(result.getCompletedAt()).isNotNull();
+    assertThat(result.getErrorMessage()).isNull();
+  }
 
-    @Test
-    @DisplayName("Should execute workflow asynchronously")
-    @Transactional
-    void shouldExecuteWorkflowAsynchronously() throws Exception {
-        // Deploy workflow
-        deployWorkflowUseCase.execute(simpleWorkflowJson);
+  @Test
+  @DisplayName("Should execute workflow asynchronously")
+  // NOTE: No @Transactional here - async execution needs committed data
+  void shouldExecuteWorkflowAsynchronously() throws Exception {
+    // Deploy workflow
+    deployWorkflowUseCase.execute(simpleWorkflowJson);
 
-        // Parse workflow graph
-        WorkflowGraph graph = workflowParser.parseToGraph(simpleWorkflowJson);
+    // Parse workflow graph
+    WorkflowGraph graph = workflowParser.parseToGraph(simpleWorkflowJson);
 
-        // Execute async
-        Map<String, Object> variables = new HashMap<>();
-        String executionId = workflowExecutor.executeAsync(graph, variables);
+    // Execute async
+    Map<String, Object> variables = new HashMap<>();
+    String executionId = workflowExecutor.executeAsync(graph, variables);
 
-        assertThat(executionId).isNotNull();
+    assertThat(executionId).isNotNull();
 
-        // Wait for completion
-        await()
-                .atMost(Duration.ofSeconds(5))
-                .pollInterval(Duration.ofMillis(100))
-                .until(() -> {
-                    WorkflowInstanceEntity instance = stateManager.getInstance(executionId);
-                    return instance.isTerminalState();
-                });
+    // Wait for completion
+    await()
+        .atMost(Duration.ofSeconds(5))
+        .pollInterval(Duration.ofMillis(100))
+        .until(
+            () -> {
+              WorkflowInstanceEntity instance = stateManager.getInstance(executionId);
+              return instance.isTerminalState();
+            });
 
-        // Verify final state
-        WorkflowInstanceEntity instance = stateManager.getInstance(executionId);
-        assertThat(instance.getState()).isEqualTo(WorkflowState.COMPLETED);
-    }
+    // Verify final state
+    WorkflowInstanceEntity instance = stateManager.getInstance(executionId);
+    assertThat(instance.getState()).isEqualTo(WorkflowState.COMPLETED);
+  }
 
-    @Test
-    @DisplayName("Should handle XOR gateway with conditions")
-    @Transactional
-    void shouldHandleXORGatewayWithConditions() throws Exception {
-        String xorWorkflowJson = """
+  @Test
+  @DisplayName("Should handle XOR gateway with conditions")
+  @Transactional
+  void shouldHandleXORGatewayWithConditions() throws Exception {
+    String xorWorkflowJson =
+        """
                 {
                   "workflowId": "xor-workflow",
                   "version": "1.0.0",
@@ -232,89 +227,88 @@ class WorkflowExecutionIntegrationTest {
                 }
                 """;
 
-        // Deploy workflow
-        deployWorkflowUseCase.execute(xorWorkflowJson);
+    // Deploy workflow
+    deployWorkflowUseCase.execute(xorWorkflowJson);
 
-        // Parse workflow graph
-        WorkflowGraph graph = workflowParser.parseToGraph(xorWorkflowJson);
+    // Parse workflow graph
+    WorkflowGraph graph = workflowParser.parseToGraph(xorWorkflowJson);
 
-        // Execute with approved condition
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("approved", true);
+    // Execute with approved condition
+    Map<String, Object> variables = new HashMap<>();
+    variables.put("approved", true);
 
-        WorkflowInstanceEntity result = workflowExecutor.executeSync(graph, variables);
+    WorkflowInstanceEntity result = workflowExecutor.executeSync(graph, variables);
 
-        // Verify execution took approved path
-        assertThat(result.getState()).isEqualTo(WorkflowState.COMPLETED);
+    // Verify execution took approved path
+    assertThat(result.getState()).isEqualTo(WorkflowState.COMPLETED);
 
-        // Check that approved task was executed
-        var history = stateManager.getExecutionHistory(result.getExecutionId());
-        assertThat(history).anyMatch(h -> h.getNodeId().equals("task-approved"));
-        assertThat(history).noneMatch(h -> h.getNodeId().equals("task-rejected"));
+    // Check that approved task was executed
+    var history = stateManager.getExecutionHistory(result.getExecutionId());
+    assertThat(history).anyMatch(h -> h.getNodeId().equals("task-approved"));
+    assertThat(history).noneMatch(h -> h.getNodeId().equals("task-rejected"));
+  }
+
+  @Test
+  @DisplayName("Should maintain state across multiple instances (HA test)")
+  @Transactional
+  void shouldMaintainStateAcrossMultipleInstances() throws Exception {
+    // Deploy workflow
+    deployWorkflowUseCase.execute(simpleWorkflowJson);
+
+    // Parse workflow graph
+    WorkflowGraph graph = workflowParser.parseToGraph(simpleWorkflowJson);
+
+    // Create instance
+    Map<String, Object> variables = new HashMap<>();
+    variables.put("counter", 0);
+
+    WorkflowInstanceEntity instance =
+        stateManager.createInstance("simple-workflow", "1.0.0", variables);
+
+    String executionId = instance.getExecutionId();
+
+    // Simulate first instance acquiring lock
+    boolean locked = stateManager.acquireLock(executionId);
+    assertThat(locked).isTrue();
+
+    // Simulate second instance trying to acquire lock (should fail)
+    boolean secondLock = stateManager.acquireLock(executionId);
+    assertThat(secondLock).isFalse();
+
+    // First instance releases lock
+    stateManager.releaseLock(executionId);
+
+    // Second instance can now acquire lock
+    boolean thirdLock = stateManager.acquireLock(executionId);
+    assertThat(thirdLock).isTrue();
+
+    stateManager.releaseLock(executionId);
+  }
+
+  @Test
+  @DisplayName("Should persist execution history")
+  @Transactional
+  void shouldPersistExecutionHistory() throws Exception {
+    // Deploy and execute
+    deployWorkflowUseCase.execute(simpleWorkflowJson);
+    WorkflowGraph graph = workflowParser.parseToGraph(simpleWorkflowJson);
+
+    Map<String, Object> variables = new HashMap<>();
+    WorkflowInstanceEntity result = workflowExecutor.executeSync(graph, variables);
+
+    // Get execution history
+    var history = stateManager.getExecutionHistory(result.getExecutionId());
+
+    // Verify history contains all nodes
+    assertThat(history).hasSizeGreaterThanOrEqualTo(3); // start, task, end
+    assertThat(history).anyMatch(h -> h.getNodeId().equals("start-1"));
+    assertThat(history).anyMatch(h -> h.getNodeId().equals("task-1"));
+    assertThat(history).anyMatch(h -> h.getNodeId().equals("end-1"));
+
+    // Verify history is ordered by execution time
+    for (int i = 1; i < history.size(); i++) {
+      assertThat(history.get(i).getExecutedAt())
+          .isAfterOrEqualTo(history.get(i - 1).getExecutedAt());
     }
-
-    @Test
-    @DisplayName("Should maintain state across multiple instances (HA test)")
-    @Transactional
-    void shouldMaintainStateAcrossMultipleInstances() throws Exception {
-        // Deploy workflow
-        deployWorkflowUseCase.execute(simpleWorkflowJson);
-
-        // Parse workflow graph
-        WorkflowGraph graph = workflowParser.parseToGraph(simpleWorkflowJson);
-
-        // Create instance
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("counter", 0);
-
-        WorkflowInstanceEntity instance = stateManager.createInstance(
-                "simple-workflow", "1.0.0", variables);
-
-        String executionId = instance.getExecutionId();
-
-        // Simulate first instance acquiring lock
-        boolean locked = stateManager.acquireLock(executionId);
-        assertThat(locked).isTrue();
-
-        // Simulate second instance trying to acquire lock (should fail)
-        boolean secondLock = stateManager.acquireLock(executionId);
-        assertThat(secondLock).isFalse();
-
-        // First instance releases lock
-        stateManager.releaseLock(executionId);
-
-        // Second instance can now acquire lock
-        boolean thirdLock = stateManager.acquireLock(executionId);
-        assertThat(thirdLock).isTrue();
-
-        stateManager.releaseLock(executionId);
-    }
-
-    @Test
-    @DisplayName("Should persist execution history")
-    @Transactional
-    void shouldPersistExecutionHistory() throws Exception {
-        // Deploy and execute
-        deployWorkflowUseCase.execute(simpleWorkflowJson);
-        WorkflowGraph graph = workflowParser.parseToGraph(simpleWorkflowJson);
-
-        Map<String, Object> variables = new HashMap<>();
-        WorkflowInstanceEntity result = workflowExecutor.executeSync(graph, variables);
-
-        // Get execution history
-        var history = stateManager.getExecutionHistory(result.getExecutionId());
-
-        // Verify history contains all nodes
-        assertThat(history).hasSizeGreaterThanOrEqualTo(3); // start, task, end
-        assertThat(history).anyMatch(h -> h.getNodeId().equals("start-1"));
-        assertThat(history).anyMatch(h -> h.getNodeId().equals("task-1"));
-        assertThat(history).anyMatch(h -> h.getNodeId().equals("end-1"));
-
-        // Verify history is ordered by execution time
-        for (int i = 1; i < history.size(); i++) {
-            assertThat(history.get(i).getExecutedAt())
-                    .isAfterOrEqualTo(history.get(i - 1).getExecutedAt());
-        }
-    }
+  }
 }
-
