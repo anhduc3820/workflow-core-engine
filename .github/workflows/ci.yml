@@ -6,7 +6,7 @@ name: Financial-Grade CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ master, dev ]
   pull_request:
     branches: [ master, dev ]
 
